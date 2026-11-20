@@ -22,7 +22,7 @@ The package has one entry point per runtime. `./strapi-admin` is the React code,
 
 ### `StrapiApp`
 
-`StrapiApp` in [`admin/src/StrapiApp.tsx`](https://github.com/strapi/strapi/blob/develop/packages/core/admin/admin/src/StrapiApp.tsx) is the admin application object. `renderAdmin` creates it with the plugins that the admin build collects. It runs each plugin `register` and then `bootstrap`, loads the translations, and renders. During `register`, plugins call methods such as `registerPlugin`, `addMenuLink`, `addSettingsLink`, `addReducers`, `addMiddlewares`, `createHook` and `registerHook`. The app also holds the `router`, the `widgets` and the `customFields` APIs.
+`StrapiApp` in [`admin/src/StrapiApp.tsx`](https://github.com/strapi/strapi/blob/develop/packages/core/admin/admin/src/StrapiApp.tsx) is the admin application object. `renderAdmin` creates it with the plugins that the admin build collects. It runs each plugin `register` and then `bootstrap`, loads the translations, and renders. During `register`, plugins call methods such as `registerPlugin`, `addMenuLink`, `addSettingsLink`, `addReducers`, `addMiddlewares`, `createHook` and `registerHook`. The app also holds the `router`, the `widgets`, the `customFields` and the `mainNav` APIs. Plugins add a menu at the bottom of the main navigation with `unstable_addMainNavMenu`: read [Main navigation extensions](./main-nav.md).
 
 ### Shared UI and state
 
