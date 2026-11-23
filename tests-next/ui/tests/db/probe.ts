@@ -1,4 +1,4 @@
-import type { Server } from '@strapi/tests-shared';
+import type { Server } from '../../fixtures';
 
 /**
  * Writes the probe row (POST /api/tests/db/probe). `created: true` means the database didn't

@@ -1,4 +1,4 @@
-import { expect, test } from '../../fixtures/app';
+import { expect, test } from '../../fixtures';
 import { writeProbe } from './probe';
 
 // Runs after reset-file-scope-2, which leaves the probe in the database. The file reset must

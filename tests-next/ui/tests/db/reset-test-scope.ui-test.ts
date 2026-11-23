@@ -1,4 +1,4 @@
-import { expect, test } from '../../fixtures/app';
+import { expect, test } from '../../fixtures';
 import { writeProbe } from './probe';
 
 test.use({ resetScope: 'test' });

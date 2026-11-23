@@ -1,4 +1,4 @@
-import { expect, test } from '../../fixtures/app';
+import { expect, test } from '../../fixtures';
 import { writeProbe } from './probe';
 
 // Default `file` scope: the tests of a file share their data. The files run in name order on

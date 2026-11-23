@@ -1,4 +1,4 @@
-import { expect, test } from '../../fixtures/app';
+import { expect, test } from '../../fixtures';
 import { writeProbe } from './probe';
 
 test('a new file starts on the snapshot, without the previous file data', async ({ server }) => {
