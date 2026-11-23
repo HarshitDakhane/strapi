@@ -324,15 +324,119 @@ describe('relation subquery path (delete / update writes)', () => {
       .forUpdate()
       .increment('views', 1);
 
-    const sql = qb.getKnexQuery().toString();
-    expect(sql).not.toMatch(/order by/i);
-    expect(sql).not.toMatch(/for update/i);
+    expect(qb.getKnexQuery().toString()).not.toMatch(/order by/i);
 
     await qb.execute();
     expect(await connection('tests').orderBy('id').pluck('views')).toEqual([11, 10, 11]);
 
     await connection.destroy();
   });
+
+  it('query builder does not emit FOR UPDATE in the relation subquery (pg SQL)', async () => {
+    // The SQLite compiler writes forUpdate() as an empty string, so compile with the pg
+    // dialect. No connection is opened: only the SQL is generated.
+    const connection = knex({ client: 'pg' });
+    const db = {
+      ...makeDb().db,
+      connection,
+      getConnection: (table?: string) => (table ? connection(table) : connection),
+    } as any;
+    const em = createEntityManager(db);
+
+    const qb = em
+      .createQueryBuilder(TEST_UID)
+      .init({ where: { related: { title: 'Category A' } } })
+      .forUpdate()
+      .increment('views', 1);
+
+    // Sanity check: a plain select with forUpdate does emit the clause on pg.
+    expect(
+      em
+        .createQueryBuilder(TEST_UID)
+        .init({ where: { name: 'Hugo LLORIS' } })
+        .forUpdate()
+        .getKnexQuery()
+        .toString()
+    ).toMatch(/for update/i);
+
+    expect(qb.getKnexQuery().toString()).not.toMatch(/for update/i);
+
+    await connection.destroy();
+  });
+
+  it.each([
+    ['increment', (qb: any) => qb.increment('views', 1), 'views', [10, 10, 11]],
+    [
+      'update',
+      (qb: any) => qb.update({ name: 'UPDATED' }),
+      'name',
+      ['Hugo LLORIS', 'Samuel UMTITI', 'UPDATED'],
+    ],
+    ['delete', (qb: any) => qb.delete(), 'name', ['Hugo LLORIS', 'Samuel UMTITI']],
+  ])(
+    'query builder first() keeps orderBy to pick the row for %s',
+    async (_label, apply, column, expected) => {
+      const { db, connection } = makeDb();
+      await setupTables(connection);
+      const em = createEntityManager(db);
+
+      // Rows 1 (Hugo) and 3 (Lucas) match; name desc makes row 3 the first one.
+      const qb = em
+        .createQueryBuilder(TEST_UID)
+        .init({ where: { related: { title: 'Category A' } }, orderBy: { name: 'desc' } })
+        .first();
+      await apply(qb).execute();
+
+      expect(await connection('tests').orderBy('id').pluck(column)).toEqual(expected);
+
+      await connection.destroy();
+    }
+  );
+
+  it.each([
+    ['numeric string increment', (qb: any) => qb.increment('views', '2'), [12, 10, 12]],
+    ['numeric string decrement', (qb: any) => qb.decrement('views', '3'), [7, 10, 7]],
+    ['negative numeric string', (qb: any) => qb.increment('views', '-2'), [8, 10, 8]],
+    [
+      'two numeric string increments on the same column',
+      (qb: any) => qb.increment('views', '2').increment('views', '3'),
+      [15, 10, 15],
+    ],
+  ])('query builder sums %s as numbers: nested relation where', async (_label, apply, expected) => {
+    const { db, connection } = makeDb();
+    await setupTables(connection);
+    const em = createEntityManager(db);
+
+    const qb = em
+      .createQueryBuilder(TEST_UID)
+      .init({ where: { related: { title: 'Category A' } } });
+    await apply(qb).execute();
+
+    expect(await connection('tests').orderBy('id').pluck('views')).toEqual(expected);
+
+    await connection.destroy();
+  });
+
+  it.each([['abc'], [''], [NaN], [Infinity]])(
+    'query builder rejects a non-numeric counter amount: %p',
+    async (amount) => {
+      const { db, connection } = makeDb();
+      await setupTables(connection);
+      const em = createEntityManager(db);
+
+      await expect(
+        em
+          .createQueryBuilder(TEST_UID)
+          .init({ where: { related: { title: 'Category A' } } })
+          .increment('views', amount as any)
+          .execute()
+      ).rejects.toThrow('non-numeric amount');
+
+      expect(await connection('tests').orderBy('id').pluck('views')).toEqual([10, 10, 10]);
+
+      await connection.destroy();
+    }
+  );
 
   it('clone() does not share state arrays with the original', async () => {
     const { db, connection } = makeDb();

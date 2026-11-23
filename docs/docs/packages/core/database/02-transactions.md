@@ -124,7 +124,7 @@ await strapi.db.transaction(async ({ trx, rollback, commit }) => {
 });
 ```
 
-`strapi.db.queryBuilder(uid).transacting(trx)` applies `trx` only outside a `strapi.db.transaction` block. Inside one, `execute()` runs the query on the block's transaction and ignores the `trx` passed to `.transacting()`.
+With `strapi.db.queryBuilder(uid).transacting(trx)`, `execute()` runs on `trx` only outside a `strapi.db.transaction` block. Inside one, `execute()` runs the query on the block's transaction and ignores the `trx` passed to `.transacting()`. `stream()` does not read the block's transaction: it uses the transaction passed to `.transacting()`, and without one it runs outside the block's transaction.
 
 ## When to use transactions
 

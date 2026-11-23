@@ -176,13 +176,22 @@ const createQueryBuilder = (
     // knex keeps one counter per column and drops counters on columns that are also in the
     // update data, so sum the amounts per column and reject the overlap.
     const counters = new Map<string, number>();
-    const addCounter = (column: string, amount: number) => {
+    const addCounter = (column: string, amount: unknown, sign: 1 | -1) => {
+      // JS callers can pass a numeric string; coerce before summing so it is not concatenated.
+      const value = typeof amount === 'string' && amount.trim() === '' ? NaN : Number(amount);
+
+      if (!Number.isFinite(value)) {
+        throw new DatabaseError(
+          `Cannot increment or decrement the column "${column}" by a non-numeric amount`
+        );
+      }
+
       const columnName = helpers.toColumnName(meta, column);
-      counters.set(columnName, (counters.get(columnName) ?? 0) + amount);
+      counters.set(columnName, (counters.get(columnName) ?? 0) + sign * value);
     };
 
-    state.increments.forEach((incr) => addCounter(incr.column, incr.amount));
-    state.decrements.forEach((decr) => addCounter(decr.column, -decr.amount));
+    state.increments.forEach((incr) => addCounter(incr.column, incr.amount, 1));
+    state.decrements.forEach((decr) => addCounter(decr.column, decr.amount, -1));
 
     if (state.data) {
       const data = state.data as Record<string, unknown>;
@@ -480,9 +489,10 @@ const createQueryBuilder = (
       const sub = this.clone();
       sub.alias = this.alias;
       // Postgres rejects FOR UPDATE with DISTINCT, and Postgres/MySQL reject ORDER BY on a
-      // column missing from the DISTINCT select list. Ordering only matters with a limit.
+      // column missing from the DISTINCT select list. Ordering only matters when it picks which
+      // rows are written: with a limit, an offset or first().
       sub.state.forUpdate = false;
-      if (state.limit == null && state.offset == null) {
+      if (state.limit == null && state.offset == null && !state.first) {
         sub.state.orderBy = [];
       }
       const subQB = sub.select('id').getKnexQuery();
